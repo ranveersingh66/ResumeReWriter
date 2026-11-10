@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AI Resume Rewriter &amp; ATS Optimizer</title>
+
+<!-- Loads our modular stylesheet from the Flask static folder -->
+<link rel="stylesheet" href="static/style.css"/>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>AI Resume Rewriter &amp; ATS Optimizer</h1>
+    <p class="subtitle">Upload your resume, paste a target job description, and get an ATS-optimized rewrite.</p>
+  </header>
+
+  <main class="layout">
+
+    <!-- ===================== LEFT COLUMN: INPUT FORM ===================== -->
+    <section class="panel input-panel">
+      <h2>1. Your Inputs</h2>
+
+      <form id="rewrite-form">
+
+        <label for="resume-input">Resume (PDF only)</label>
+        <input
+          type="file"
+          id="resume-input"
+          name="resume"
+          accept="application/pdf"
+          required
+        />
+        <!-- Shows the selected filename so the user gets feedback immediately -->
+        <p id="file-name-display" class="hint">No file selected.</p>
+
+        <label for="job-description-input">Target Job Description</label>
+        <textarea
+          id="job-description-input"
+          name="job_description"
+          rows="14"
+          placeholder="Paste the full job description here..."
+          required
+        ></textarea>
+
+        <button type="submit" id="submit-btn">Rewrite Resume</button>
+      </form>
+
+      <!-- Error box, hidden by default, shown by JS on failure -->
+      <div id="error-box" class="error-box hidden" role="alert"></div>
+    </section>
+
+    <!-- ===================== RIGHT COLUMN: OUTPUT DISPLAY ===================== -->
+    <section class="panel output-panel">
+      <h2>2. Optimized Result</h2>
+
+      <!-- Placeholder shown before the first request -->
+      <div id="placeholder-state" class="placeholder">
+        Your rewritten, ATS-optimized resume will appear here.
+      </div>
+
+      <!-- Loading state shown while waiting on the backend -->
+      <div id="loading-state" class="loading hidden">
+        <div class="spinner"></div>
+        <p>Analyzing resume against job description...</p>
+      </div>
+
+      <!-- Final rendered output -->
+      <article id="result-output" class="result-output hidden"></article>
+
+      <button id="copy-btn" class="copy-btn hidden" type="button">Copy to Clipboard</button>
+    </section>
+
+  </main>
+
+  <footer class="app-footer">
+    <p>Flask + PyPDF2 + Gemini 2.5 Flash &middot; College Project Demo</p>
+  </footer>
+
+  <script>
+    /**
+     * Frontend logic for the AI Resume Rewriter.
+     * Plain vanilla JavaScript — no frameworks, as per project requirements.
+     *
+     * Responsibilities:
+     *   1. Show the selected PDF filename when chosen.
+     *   2. Intercept form submission, send it via fetch() as multipart/form-data.
+     *   3. Toggle loading / error / result UI states.
+     *   4. Render the Markdown response as readable HTML (lightweight converter,
+     *      no external libraries required).
+     */
+
+    const form            = document.getElementById('rewrite-form');
+    const resumeInput     = document.getElementById('resume-input');
+    const fileNameDisplay = document.getElementById('file-name-display');
+    const submitBtn       = document.getElementById('submit-btn');
+
+    const placeholderState = document.getElementById('placeholder-state');
+    const loadingState     = document.getElementById('loading-state');
+    const resultOutput     = document.getElementById('result-output');
+    const errorBox         = document.getElementById('error-box');
+    const copyBtn          = document.getElementById('copy-btn');
+
+    // ---- 1. Show chosen filename ----
+    resumeInput.addEventListener('change', () => {
+      if (resumeInput.files.length > 0) {
+        fileNameDisplay.textContent = `Selected: ${resumeInput.files[0].name}`;
+      } else {
+        fileNameDisplay.textContent = 'No file selected.';
+      }
+    });
+
+    // ---- 2. Helper: switch which panel state is visible ----
+    function setState(state) {
+      // state is one of: 'placeholder' | 'loading' | 'result' | 'error'
+      placeholderState.classList.add('hidden');
+      loadingState.classList.add('hidden');
+      resultOutput.classList.add('hidden');
+      copyBtn.classList.add('hidden');
+      errorBox.classList.add('hidden');
+
+      if (state === 'placeholder') placeholderState.classList.remove('hidden');
+      if (state === 'loading')     loadingState.classList.remove('hidden');
+      if (state === 'result') {
+        resultOutput.classList.remove('hidden');
+        copyBtn.classList.remove('hidden');
+      }
+      if (state === 'error') errorBox.classList.remove('hidden');
+    }
+
+    // ---- 3. Very small Markdown -> HTML converter ----
+    // Good enough for headings, bold text, and bullet lists, which is all
+    // our prompt asks Gemini to produce. Avoids pulling in an external JS
+    // library, keeping the frontend dependency-free as required.
+    function renderMarkdown(markdown) {
+      const escapeHtml = (str) =>
+        str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+      const lines = escapeHtml(markdown).split('\n');
+      let html = '';
+      let inList = false;
+
+      for (let rawLine of lines) {
+        const line = rawLine.trim();
+
+        // Bold: **text** -> <strong>text</strong>
+        const withBold = line.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+
+        if (withBold.startsWith('### ')) {
+          if (inList) { html += '</ul>'; inList = false; }
+          html += `<h4>${withBold.slice(4)}</h4>`;
+        } else if (withBold.startsWith('## ')) {
+          if (inList) { html += '</ul>'; inList = false; }
+          html += `<h3>${withBold.slice(3)}</h3>`;
+        } else if (withBold.startsWith('# ')) {
+          if (inList) { html += '</ul>'; inList = false; }
+          html += `<h2>${withBold.slice(2)}</h2>`;
+        } else if (withBold.startsWith('- ') || withBold.startsWith('* ')) {
+          if (!inList) { html += '<ul>'; inList = true; }
+          html += `<li>${withBold.slice(2)}</li>`;
+        } else if (withBold === '') {
+          if (inList) { html += '</ul>'; inList = false; }
+        } else {
+          if (inList) { html += '</ul>'; inList = false; }
+          html += `<p>${withBold}</p>`;
+        }
+      }
+      if (inList) html += '</ul>';
+
+      return html;
+    }
+
+    // ---- 4. Form submission handler ----
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+
+      // Basic client-side guard rails before hitting the network.
+      if (resumeInput.files.length === 0) {
+        showError('Please choose a PDF resume first.');
+        return;
+      }
+
+      const formData = new FormData(form); // auto-includes file + textarea
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Rewriting...';
+      setState('loading');
+
+      try {
+        const response = await fetch('/rewrite', {
+          method: 'POST',
+          body: formData, // browser sets multipart/form-data boundary automatically
+        });
+
+        // Backend always returns JSON, even on error, so this is safe.
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+          showError(data.error || 'Something went wrong. Please try again.');
+          return;
+        }
+
+        resultOutput.innerHTML = renderMarkdown(data.result);
+        setState('result');
+
+      } catch (networkErr) {
+        // fetch() throws on network failure (server down, no internet, etc.)
+        showError('Could not reach the server. Check your connection and try again.');
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Rewrite Resume';
+      }
+    });
+
+    function showError(message) {
+      errorBox.textContent = message;
+      setState('error');
+    }
+
+    // ---- 5. Copy-to-clipboard for convenience ----
+    copyBtn.addEventListener('click', () => {
+      navigator.clipboard.writeText(resultOutput.innerText).then(() => {
+        copyBtn.textContent = 'Copied!';
+        setTimeout(() => { copyBtn.textContent = 'Copy to Clipboard'; }, 1500);
+      });
+    });
+  </script>
+
+</body>
+</html>

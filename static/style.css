@@ -1,0 +1,256 @@
+/* ==========================================================================
+   style.css — AI Resume Rewriter & ATS Optimizer
+   Clean, modular CSS. Organized by section; uses CSS variables for theming
+   so colors/spacing can be tweaked in one place (good talking point for
+   a project defense).
+   ========================================================================== */
+
+:root {
+  /* ---- Color palette ---- */
+  --color-bg: #f4f6fb;
+  --color-surface: #ffffff;
+  --color-border: #e1e5ee;
+  --color-text: #1f2433;
+  --color-text-muted: #6b7280;
+  --color-primary: #4f46e5;
+  --color-primary-hover: #4338ca;
+  --color-error-bg: #fef2f2;
+  --color-error-border: #fca5a5;
+  --color-error-text: #b91c1c;
+
+  /* ---- Spacing scale ---- */
+  --space-xs: 0.4rem;
+  --space-sm: 0.8rem;
+  --space-md: 1.4rem;
+  --space-lg: 2rem;
+
+  /* ---- Shape ---- */
+  --radius: 10px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "Segoe UI", Roboto, -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--color-bg);
+  color: var(--color-text);
+  line-height: 1.5;
+}
+
+/* ============================= HEADER ============================= */
+
+.app-header {
+  text-align: center;
+  padding: var(--space-lg) var(--space-md) var(--space-md);
+}
+
+.app-header h1 {
+  margin: 0 0 var(--space-xs);
+  font-size: 1.9rem;
+}
+
+.app-header .subtitle {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.95rem;
+}
+
+/* ============================= LAYOUT ============================= */
+/* Two-column grid: input form on the left, output on the right.
+   Falls back to a single stacked column on narrow screens. */
+
+.layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-lg);
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 var(--space-lg) var(--space-lg);
+}
+
+@media (max-width: 860px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.panel {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: var(--space-md);
+  min-height: 480px;
+  display: flex;
+  flex-direction: column;
+}
+
+.panel h2 {
+  margin-top: 0;
+  font-size: 1.1rem;
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: var(--space-sm);
+}
+
+/* ============================= FORM ELEMENTS ============================= */
+
+label {
+  display: block;
+  font-weight: 600;
+  font-size: 0.9rem;
+  margin: var(--space-md) 0 var(--space-xs);
+}
+
+input[type="file"] {
+  width: 100%;
+  padding: var(--space-sm);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-bg);
+  font-size: 0.9rem;
+}
+
+textarea {
+  width: 100%;
+  padding: var(--space-sm);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  font-family: inherit;
+  font-size: 0.9rem;
+  resize: vertical;
+}
+
+.hint {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  margin: var(--space-xs) 0 0;
+}
+
+button#submit-btn {
+  margin-top: var(--space-lg);
+  width: 100%;
+  padding: var(--space-sm) var(--space-md);
+  background: var(--color-primary);
+  color: white;
+  border: none;
+  border-radius: var(--radius);
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+button#submit-btn:hover:not(:disabled) {
+  background: var(--color-primary-hover);
+}
+
+button#submit-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+/* ============================= OUTPUT PANEL ============================= */
+
+.placeholder {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: 0.95rem;
+  padding: var(--space-lg);
+}
+
+.result-output {
+  flex: 1;
+  overflow-y: auto;
+  font-size: 0.92rem;
+}
+
+.result-output h2,
+.result-output h3,
+.result-output h4 {
+  margin: var(--space-md) 0 var(--space-xs);
+}
+
+.result-output ul {
+  margin: var(--space-xs) 0;
+  padding-left: 1.3rem;
+}
+
+.result-output p {
+  margin: var(--space-xs) 0;
+}
+
+.copy-btn {
+  margin-top: var(--space-md);
+  align-self: flex-start;
+  padding: var(--space-xs) var(--space-md);
+  background: var(--color-surface);
+  border: 1px solid var(--color-primary);
+  color: var(--color-primary);
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.copy-btn:hover {
+  background: var(--color-primary);
+  color: white;
+}
+
+/* ============================= LOADING STATE ============================= */
+
+.loading {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  color: var(--color-text-muted);
+}
+
+.spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--color-border);
+  border-top-color: var(--color-primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ============================= ERROR STATE ============================= */
+
+.error-box {
+  margin-top: var(--space-md);
+  padding: var(--space-sm) var(--space-md);
+  background: var(--color-error-bg);
+  border: 1px solid var(--color-error-border);
+  color: var(--color-error-text);
+  border-radius: var(--radius);
+  font-size: 0.88rem;
+}
+
+/* ============================= UTILITY ============================= */
+
+.hidden {
+  display: none !important;
+}
+
+/* ============================= FOOTER ============================= */
+
+.app-footer {
+  text-align: center;
+  padding: var(--space-md);
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+}
